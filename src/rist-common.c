@@ -1802,7 +1802,6 @@ void rist_peer_rtcp(struct evsocket_ctx *evctx, void *arg)
 	static inline bool equal_address(uint16_t family, struct sockaddr *A_, struct rist_peer *p)
 	{
 		bool result = false;
-
 		if (!p) {
 			return result;
 		}
@@ -1812,13 +1811,18 @@ void rist_peer_rtcp(struct evsocket_ctx *evctx, void *arg)
 		}
 
 		struct sockaddr *B_ = &p->u.address;
-
 		if (family == AF_INET) {
 			struct sockaddr_in *a = (struct sockaddr_in *)A_;
 			struct sockaddr_in *b = (struct sockaddr_in *)B_;
-			result = (a->sin_port == b->sin_port) &&
-				((!p->receiver_mode && p->listening) ||
-				 (a->sin_addr.s_addr == b->sin_addr.s_addr));
+			result = /* First conditional will match most cases */
+				 ((a->sin_port == b->sin_port) &&
+				 ((!p->receiver_mode && p->listening) ||
+				 (a->sin_addr.s_addr == b->sin_addr.s_addr))) ||
+				 /* Second conditional allows senders to be killed and re-started
+				  * Only necessary when the receiver is a listener
+				  * */
+				 ((a->sin_addr.s_addr == b->sin_addr.s_addr) &&
+				 (p->receiver_mode && p->listening));
 			if (result && !p->remote_port)
 				p->remote_port = a->sin_port;
 		} else {
@@ -1831,7 +1835,6 @@ void rist_peer_rtcp(struct evsocket_ctx *evctx, void *arg)
 			if (result && !p->remote_port)
 				p->remote_port = a->sin6_port;
 		}
-
 		return result;
 	}
 
